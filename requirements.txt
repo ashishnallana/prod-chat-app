@@ -1,0 +1,20 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+asyncpg
+psycopg2-binary
+motor
+beanie
+aiokafka
+redis
+supabase
+python-dotenv
+passlib[bcrypt]
+pyjwt
+pydantic-settings
+pydantic[email]
+websockets
+jinja2
+# Extras
+httpx # for internal microservice communication
