@@ -1,6 +1,5 @@
 from passlib.context import CryptContext
 import random
-import rstr
 import redis.asyncio as redis
 from shared.config import settings
 

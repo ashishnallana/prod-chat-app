@@ -21,7 +21,9 @@ SERVICES = {
 client = httpx.AsyncClient()
 
 async def forward_request(request: Request, service_url: str):
-    url = f"{service_url}{request.url.path}"
+    # Strip the /api/v1 prefix since microservices expect /auth, /chat, etc.
+    stripped_path = request.url.path.replace("/api/v1", "", 1)
+    url = f"{service_url}{stripped_path}"
     if request.url.query:
         url += f"?{request.url.query}"
     
