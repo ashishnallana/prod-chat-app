@@ -2,14 +2,19 @@ import httpx
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.background import BackgroundTask
 import websockets
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="API Gateway")
 
+Instrumentator().instrument(app).expose(app)
+
+import os
+
 # Service Map
 SERVICES = {
-    "auth": "http://localhost:8001",
-    "chat": "http://localhost:8002",
-    "files": "http://localhost:8003",
+    "auth": os.getenv("AUTH_SERVICE_URL", "http://localhost:8001"),
+    "chat": os.getenv("CHAT_SERVICE_URL", "http://localhost:8002"),
+    "files": os.getenv("FILE_SERVICE_URL", "http://localhost:8003"),
 }
 
 # Async HTTP client
