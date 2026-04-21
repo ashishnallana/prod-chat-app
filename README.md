@@ -1,81 +1,89 @@
-# Scalable Real-Time Chat App
+# 🚀 Scalable Microservices Real-Time Chat App
 
-A microservices-based chat application built using FastAPI, PostgreSQL, MongoDB, Redis, and Kafka.
+A highly-scalable, asynchronous real-time chat application built rigidly on a microservices architecture. It features secure OTP-based authentication, an API Gateway, real-time WebSocket messaging, background email notifications over Kafka, and aggressive telemetry using Prometheus and Grafana.
 
-## Architecture
+---
 
-* **Auth Service**: Manages User signup, login via OTP, and JWT issuance (PostgreSQL).
-* **Chat Service**: Handles WebSocket connections and text/attachment messaging (MongoDB + Redis).
-* **Notification Service**: Sends OTP over email via Kafka event stream.
-* **File Service**: Securely uploads files to Supabase Storage.
-* **API Gateway**: Single entry point that proxies requests to microservices.
+## 🏗️ Architecture overview
 
-## Technologies Used
+### 🧱 Tech Stack
+- **Frontend**: Next.js 14, React 18, Redux Toolkit, TailwindCSS v4
+- **Backend**: Python 3.11, FastAPI (5 Microservices)
+- **Databases**: PostgreSQL (Relational Data), MongoDB (NoSQL Document Store)
+- **Message Brokers**: Apache Kafka + Zookeeper (Event-driven Architecture)
+- **Caching & Presence**: Redis
+- **Metrics & Logging**: Prometheus, Grafana
+- **Containerization**: Docker, Docker-compose
 
-* Backend: FastAPI (Python)
-* Database (Relational): PostgreSQL (User Data)
-* Database (Document): MongoDB (Messages)
-* Cache / Realtime: Redis (Presence, pub/sub, caching)
-* Message Broker: Kafka (Asynchronous events)
-* Storage: Supabase Storage
-* ORM: SQLAlchemy (Postgres) & Beanie (MongoDB)
+### 🧩 Microservices Layout
+1. **API Gateway** (`8000`): The central reverse-proxy built with FastAPI and `httpx`. Intercepts external HTTP/WS traffic and routes it dynamically to internal Docker hostnames.
+2. **Auth Service** (`8001`): Handles PostgreSQL interactions. Manages `User` registration, Bcrypt hashing, session JWTs, and emits `otp_requested` Kafka events.
+3. **Chat Service** (`8002`): Handles live WebSocket bindings using `beanie` (MongoDB) for infinite chat history and `redis` for tracking user connection status. Includes cross-node routing schemas.
+4. **File Service** (`8003`): Ready to connect securely to third-party CDNs (like Supabase) to authorize and handle media streams.
+5. **Notification Service** (Headless): Background consumer listening securely to Kafka `otp_requested` events. Triggers live email distributions via SMTP securely.
 
-## Local Development Setup
+---
 
-### 1. Prerequisites
-You must have the following running locally:
-* PostgreSQL on port `5432`
-* MongoDB on port `27017`
-* Redis on port `6379`
-* Kafka and Zookeeper (typically Kafka on `9092` and Zookeeper on `2181`)
+## 🔒 Environment Requirements
 
-### 2. Environment Variables
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Open `.env` and fill in your missing credentials:
-   - `SMTP_USER` and `SMTP_PASSWORD` (Your Gmail and its App Password).
-   - `SUPABASE_URL` and `SUPABASE_KEY` (Your Supabase project keys).
-   - Local DB passwords if applicable.
+To boot the architecture successfully, create a `.env` file at the exact root of your repository (`/chat-app/.env`) containing these critical properties:
 
-### 3. Virtual Environment
-Create and activate the virtual environment:
-```powershell
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
+```env
+# SECURITY
+SECRET_KEY=your_super_secret_jwt_key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+# POSTGRES (Auth mapping)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=chat_db
+
+# NOTIFICATION CREDENTIALS (for Kafka Consumer)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+# You MUST get an App Password from your Google Account settings
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_google_app_password
+
+# FILE CDN
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_key
 ```
 
-*(Note: If you add new packages, please update `requirements.txt` and re-freeze).*
+*(Note: The `frontend/` logic pulls the gateway proxy through a Next.js `.env.local` containing `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WEBSOCKET_URL` automatically.)*
 
-### 4. Running the Services
+---
 
-*Presently, services are run manually. Docker setup is planned in the future.*
+## 🚀 Running the Application
 
-Open multiple terminals. In each terminal, activate your virtual environment:
+### 1. Launch the Backend Infrastructure
+Use `docker-compose` to spin up the entire internal network containing 12 heavily orchestrated containers (Gateway, 4x Services, Postgres, Mongo, Redis, Zookeeper, Kafka, Prometheus, Grafana):
 
-**Run API Gateway (Port 8000)**
 ```bash
-uvicorn api_gateway.main:app --port 8000 --reload
+docker-compose down
+docker-compose up -d --build
+```
+*Wait ~15 seconds on the first boot for Postgres and Zookeeper to properly authorize health checks before the Microservices initialize.*
+
+### 2. Boot the Next.js Frontend
+Once Docker registers healthy across the cluster, power up the UI workspace:
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-**Run Auth Service (Port 8001)**
-```bash
-uvicorn auth_service.main:app --port 8001 --reload
-```
+### 3. Verify Links
+- **User Interface**: [http://localhost:3000](http://localhost:3000)
+- **API Gateway Health**: [http://localhost:8000/health](http://localhost:8000/health)
+- **System Telemetry / Grafana**: [http://localhost:3001](http://localhost:3001) *(u: `admin` | p: `admin`)*
 
-**Run Chat Service (Port 8002)**
-```bash
-uvicorn chat_service.main:app --port 8002 --reload
-```
+---
 
-**Run File Service (Port 8003)**
-```bash
-uvicorn file_service.main:app --port 8003 --reload
-```
-
-**Run Notification Service (Worker)**
-```bash
-python -m notification_service.main
-```
+## 💥 Features
+1. **Redux Global State Wiring**: Completely decouples Next.js UI from localized states, pushing network requests directly into global Redux thunks.
+2. **WebSocket True-Echo Routing**: Chat payloads establish persistent bidirectional TCP connections dynamically proxied flawlessly over the Gateway into Python without HTTP polling.
+3. **Kafka Event Bus**: Completely detaches external email latency from the Auth REST loop. When you create an account, Kafka consumes the notification instantly without hanging the UI.
+4. **Grafana Dashboards Ready**: Every FastAPI node inherently wraps its ASGI application utilizing `prometheus-fastapi-instrumentator`, exposing real live metrics available dynamically.
