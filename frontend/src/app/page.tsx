@@ -1,25 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { login, signup, verifyOtp, clearError } from "../store/slices/authSlice";
 
 export default function AuthPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { token, loading, error, email: unverifiedEmail } = useAppSelector((state) => state.auth);
+
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // If we already have a JWT safely generated, jump to chat.
+  useEffect(() => {
+    if (token) {
+      router.push("/chat");
+    }
+  }, [token, router]);
+
+  // Clear errors dynamically when switching tabs
+  useEffect(() => {
+    dispatch(clearError());
+    setShowOtp(false);
+  }, [isLogin, dispatch]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLogin && !showOtp) {
-      // Simulate sending OTP
-      setShowOtp(true);
+
+    if (showOtp) {
+      const resultAction = await dispatch(verifyOtp({ email: unverifiedEmail || email, otp }));
+      if (verifyOtp.fulfilled.match(resultAction)) {
+        // Once OTP verified, instantly trigger a login token request to dive into chat
+        dispatch(login({ email: unverifiedEmail || email, password }));
+      }
       return;
     }
-    // Simulate auth success
-    router.push("/chat");
+
+    if (isLogin) {
+      dispatch(login({ email, password }));
+    } else {
+      const resultAction = await dispatch(signup({ email, password }));
+      if (signup.fulfilled.match(resultAction)) {
+        setShowOtp(true);
+      }
+    }
   };
 
   return (
@@ -40,6 +69,12 @@ export default function AuthPage() {
               : "Enter your credentials to continue to Terminal."}
           </p>
         </div>
+
+        {error && (
+            <div className="mb-4 text-xs bg-red-950/40 text-red-400 border border-red-900 rounded p-2 text-center animate-pulse">
+                {error}
+            </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!showOtp ? (
@@ -84,9 +119,10 @@ export default function AuthPage() {
 
           <button
             type="submit"
-            className="w-full py-3 mt-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-xl shadow-lg hover:shadow-primary/25 transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
+            disabled={loading}
+            className="w-full py-3 mt-4 flex items-center justify-center bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white font-semibold rounded-xl shadow-lg transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
           >
-            {showOtp ? "Verify & Enter" : isLogin ? "Sign In" : "Continue with Email"}
+            {loading ? "Processing..." : showOtp ? "Verify & Enter" : isLogin ? "Sign In" : "Continue with Email"}
           </button>
         </form>
 

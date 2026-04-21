@@ -49,12 +49,11 @@ async def forward_request(request: Request, service_url: str):
         content=body
     )
     
-    response = await client.send(req, stream=True)
+    response = await client.send(req)
     return Response(
         content=response.content,
         status_code=response.status_code,
-        headers=dict(response.headers),
-        background=BackgroundTask(response.aclose)
+        headers=dict(response.headers)
     )
 
 @app.api_route("/api/v1/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
@@ -74,7 +73,8 @@ async def proxy_chat_ws(websocket: WebSocket):
     # Proxy WebSocket connection to the Chat Service
     await websocket.accept()
     query = websocket.url.query
-    chat_ws_url = f"ws://localhost:8002/chat/ws?{query}"
+    chat_base_url = SERVICES["chat"].replace("http://", "ws://")
+    chat_ws_url = f"{chat_base_url}/chat/ws?{query}"
     
     try:
         async with websockets.connect(chat_ws_url) as target_ws:

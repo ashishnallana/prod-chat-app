@@ -13,6 +13,7 @@ redis
 supabase
 python-dotenv
 passlib[bcrypt]
+bcrypt==4.0.1
 pyjwt
 pydantic-settings
 pydantic[email]

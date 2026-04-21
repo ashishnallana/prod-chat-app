@@ -58,11 +58,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
                 "timestamp": str(new_message.timestamp)
             }
 
-            # 2. Attempt local delivery
+            # 2. Attempt local delivery to receiver
             delivered = await manager.send_personal_message(msg_dict, receiver_id)
             
-            # 3. If offline on this node, check global presence or let Kafka handle cross-node routing
-            # For simplicity, we broadcast to Kafka so other nodes/notification consumer can catch it
+            # 3. Echo the message locally to the sender so their UI updates
+            await manager.send_personal_message(msg_dict, user_id)
+            
+            # 4. If offline on this node, check global presence or let Kafka handle cross-node routing
             if not delivered:
                 await send_message("message_sent", msg_dict)
             
