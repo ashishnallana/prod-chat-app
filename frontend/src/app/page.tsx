@@ -2,24 +2,105 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { setAuth } from "@/store/slices/authSlice";
+import { jwtDecode } from "jwt-decode";
 
 export default function AuthPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
+  
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+  const handleSignup = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${apiUrl}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Signup failed");
+      setShowOtp(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${apiUrl}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "OTP verification failed");
+      
+      // Verification successful, switch to login
+      setShowOtp(false);
+      setIsLogin(true);
+      setOtp("");
+      setError("Email verified! Please log in.");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${apiUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      
+      const token = data.access_token;
+      const decoded: any = jwtDecode(token);
+      
+      dispatch(setAuth({
+        token,
+        userId: parseInt(decoded.sub),
+        email: decoded.email,
+      }));
+      
+      router.push("/chat");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLogin && !showOtp) {
-      // Simulate sending OTP
-      setShowOtp(true);
-      return;
+      await handleSignup();
+    } else if (!isLogin && showOtp) {
+      await handleVerifyOtp();
+    } else {
+      await handleLogin();
     }
-    // Simulate auth success
-    router.push("/chat");
   };
 
   return (
@@ -40,6 +121,12 @@ export default function AuthPage() {
               : "Enter your credentials to continue to Terminal."}
           </p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl text-center">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!showOtp ? (
@@ -84,9 +171,10 @@ export default function AuthPage() {
 
           <button
             type="submit"
-            className="w-full py-3 mt-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-xl shadow-lg hover:shadow-primary/25 transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
+            disabled={loading}
+            className="w-full py-3 mt-4 bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white font-semibold rounded-xl shadow-lg hover:shadow-primary/25 transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
           >
-            {showOtp ? "Verify & Enter" : isLogin ? "Sign In" : "Continue with Email"}
+            {loading ? "Processing..." : showOtp ? "Verify & Enter" : isLogin ? "Sign In" : "Continue with Email"}
           </button>
         </form>
 

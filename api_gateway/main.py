@@ -1,10 +1,19 @@
 import httpx
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.background import BackgroundTask
+from fastapi.middleware.cors import CORSMiddleware
 import websockets
 from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="API Gateway")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Since it's local development, * is fine
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Instrumentator().instrument(app).expose(app)
 
@@ -40,12 +49,16 @@ async def forward_request(request: Request, service_url: str):
         content=body
     )
     
-    response = await client.send(req, stream=True)
+    response = await client.send(req)
+    # Strip headers that might mess with FastAPI's own response serialization
+    proxy_headers = dict(response.headers)
+    proxy_headers.pop("content-length", None)
+    proxy_headers.pop("content-encoding", None)
+    
     return Response(
         content=response.content,
         status_code=response.status_code,
-        headers=dict(response.headers),
-        background=BackgroundTask(response.aclose)
+        headers=proxy_headers
     )
 
 @app.api_route("/api/v1/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
@@ -65,7 +78,10 @@ async def proxy_chat_ws(websocket: WebSocket):
     # Proxy WebSocket connection to the Chat Service
     await websocket.accept()
     query = websocket.url.query
-    chat_ws_url = f"ws://localhost:8002/chat/ws?{query}"
+    
+    # Parse HTTP to WS prefix cleanly
+    chat_base = SERVICES["chat"].replace("http://", "ws://").replace("https://", "wss://")
+    chat_ws_url = f"{chat_base}/chat/ws?{query}"
     
     try:
         async with websockets.connect(chat_ws_url) as target_ws:

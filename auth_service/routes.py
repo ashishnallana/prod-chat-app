@@ -65,3 +65,10 @@ async def login(payload: schemas.UserLogin, db: AsyncSession = Depends(get_db_se
 
     access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/search", response_model=list[schemas.UserSearchResponse])
+async def search_users(email: str, db: AsyncSession = Depends(get_db_session)):
+    query = select(models.User).filter(models.User.email.ilike(f"%{email}%")).limit(20)
+    result = await db.execute(query)
+    users = result.scalars().all()
+    return [{"id": u.id, "email": u.email} for u in users]
