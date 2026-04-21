@@ -1,9 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., max_length=72)
+    password: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -28,6 +28,8 @@ class ProfileResponse(BaseModel):
     bio: Optional[str]
     profile_picture_url: Optional[str]
 
-class UserSearchResponse(BaseModel):
+class UserResponse(BaseModel):
     id: int
     email: EmailStr
+    is_verified: bool
+

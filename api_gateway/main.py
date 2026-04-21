@@ -1,23 +1,15 @@
 import httpx
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.background import BackgroundTask
-from fastapi.middleware.cors import CORSMiddleware
 import websockets
 from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="API Gateway")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # Since it's local development, * is fine
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 Instrumentator().instrument(app).expose(app)
 
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 # Service Map
 SERVICES = {
@@ -25,6 +17,14 @@ SERVICES = {
     "chat": os.getenv("CHAT_SERVICE_URL", "http://localhost:8002"),
     "files": os.getenv("FILE_SERVICE_URL", "http://localhost:8003"),
 }
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Async HTTP client
 client = httpx.AsyncClient()
@@ -49,16 +49,12 @@ async def forward_request(request: Request, service_url: str):
         content=body
     )
     
-    response = await client.send(req)
-    # Strip headers that might mess with FastAPI's own response serialization
-    proxy_headers = dict(response.headers)
-    proxy_headers.pop("content-length", None)
-    proxy_headers.pop("content-encoding", None)
-    
+    response = await client.send(req, stream=True)
     return Response(
         content=response.content,
         status_code=response.status_code,
-        headers=proxy_headers
+        headers=dict(response.headers),
+        background=BackgroundTask(response.aclose)
     )
 
 @app.api_route("/api/v1/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
@@ -78,10 +74,7 @@ async def proxy_chat_ws(websocket: WebSocket):
     # Proxy WebSocket connection to the Chat Service
     await websocket.accept()
     query = websocket.url.query
-    
-    # Parse HTTP to WS prefix cleanly
-    chat_base = SERVICES["chat"].replace("http://", "ws://").replace("https://", "wss://")
-    chat_ws_url = f"{chat_base}/chat/ws?{query}"
+    chat_ws_url = f"ws://localhost:8002/chat/ws?{query}"
     
     try:
         async with websockets.connect(chat_ws_url) as target_ws:
