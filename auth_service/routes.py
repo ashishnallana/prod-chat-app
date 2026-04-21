@@ -72,3 +72,14 @@ async def search_users(email: str, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(query)
     users = result.scalars().all()
     return users
+
+from pydantic import BaseModel
+class UserIdsRequest(BaseModel):
+    user_ids: list[int]
+
+@router.post("/users/batch", response_model=list[schemas.UserResponse])
+async def get_users_batch(payload: UserIdsRequest, db: AsyncSession = Depends(get_db_session)):
+    query = select(models.User).filter(models.User.id.in_(payload.user_ids))
+    result = await db.execute(query)
+    users = result.scalars().all()
+    return users

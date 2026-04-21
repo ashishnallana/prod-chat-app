@@ -89,3 +89,16 @@ async def get_history(user_id: int, current_user_id: int):
 async def get_presence(user_id: int):
     is_online = await manager.is_user_online(user_id)
     return {"user_id": user_id, "status": "online" if is_online else "offline"}
+
+@router.get("/conversations")
+async def get_conversations(current_user_id: int):
+    messages = await Message.find(
+        {"$or": [{"sender_id": current_user_id}, {"receiver_id": current_user_id}]}
+    ).to_list()
+    partner_ids = set()
+    for m in messages:
+        if m.sender_id != current_user_id:
+            partner_ids.add(m.sender_id)
+        if m.receiver_id != current_user_id:
+            partner_ids.add(m.receiver_id)
+    return list(partner_ids)

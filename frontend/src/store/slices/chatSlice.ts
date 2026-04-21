@@ -18,6 +18,7 @@ export interface Message {
 
 interface ChatState {
   searchResults: User[];
+  recentChats: User[];
   activeChatUser: User | null;
   messages: Message[];
   loading: boolean;
@@ -25,6 +26,7 @@ interface ChatState {
 
 const initialState: ChatState = {
   searchResults: [],
+  recentChats: [],
   activeChatUser: null,
   messages: [],
   loading: false,
@@ -34,6 +36,25 @@ const initialState: ChatState = {
 export const searchUsers = createAsyncThunk('chat/searchUsers', async (email: string) => {
   const response = await api.get(`/auth/users/search?email=${email}`);
   return response.data as User[];
+});
+
+// Fetch recent chats (contacts we've talked to)
+export const fetchRecentChats = createAsyncThunk('chat/recentChats', async (_, { getState }) => {
+  const state: any = getState();
+  const token = state.auth.token;
+  let currentUserId = 0;
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      currentUserId = parseInt(payload.sub);
+    } catch(e) {}
+  }
+  const convResponse = await api.get(`/chat/conversations?current_user_id=${currentUserId}`);
+  const partnerIds: number[] = convResponse.data;
+  if (partnerIds.length === 0) return [];
+
+  const usersResponse = await api.post(`/auth/users/batch`, { user_ids: partnerIds });
+  return usersResponse.data as User[];
 });
 
 // Fetch historical messages 
@@ -73,6 +94,10 @@ const chatSlice = createSlice({
     // Search
     builder.addCase(searchUsers.fulfilled, (state, action) => {
       state.searchResults = action.payload;
+    });
+    // Recent Chats
+    builder.addCase(fetchRecentChats.fulfilled, (state, action) => {
+      state.recentChats = action.payload;
     });
     // History
     builder.addCase(fetchHistory.pending, (state) => {

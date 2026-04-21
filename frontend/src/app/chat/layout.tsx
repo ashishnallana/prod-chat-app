@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { searchUsers, setActiveChatUser, User } from "../../store/slices/chatSlice";
+import { searchUsers, fetchRecentChats, setActiveChatUser, User } from "../../store/slices/chatSlice";
 import { logout } from "../../store/slices/authSlice";
 import { useRouter } from "next/navigation";
 
@@ -11,7 +11,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   
   const { token, email } = useAppSelector((state) => state.auth);
-  const { searchResults, activeChatUser } = useAppSelector((state) => state.chat);
+  const { searchResults, recentChats, activeChatUser } = useAppSelector((state) => state.chat);
   
   const [query, setQuery] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -25,6 +25,12 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
       router.push("/");
     }
   }, [mounted, token, router]);
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchRecentChats());
+    }
+  }, [token, dispatch]);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -45,6 +51,8 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
 
   if (!mounted) return null;
   if (!token) return null;
+
+  const displayList = query.trim() ? searchResults : recentChats;
 
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-50 overflow-hidden">
@@ -70,9 +78,9 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         
         {/* Dynamic Chat List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-          {searchResults.length === 0 && query.length > 0 ? (
+          {displayList.length === 0 && query.length > 0 ? (
              <div className="text-center text-zinc-500 text-xs mt-4">No users found.</div>
-          ) : searchResults.map((user) => (
+          ) : displayList.map((user) => (
             <div 
               key={user.id} 
               onClick={() => handleSelectUser(user)}
@@ -89,8 +97,8 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
               </div>
             </div>
           ))}
-          {searchResults.length === 0 && query.length === 0 && (
-             <div className="text-center text-zinc-600 text-xs mt-4 hidden">Search to begin a chat.</div>
+          {displayList.length === 0 && query.length === 0 && (
+             <div className="text-center text-zinc-600 text-xs mt-4">Search to begin a chat.</div>
           )}
         </div>
         
