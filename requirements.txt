@@ -4,17 +4,21 @@ sqlalchemy
 alembic
 asyncpg
 psycopg2-binary
-motor
-beanie
+motor==3.3.2
+beanie==1.25.0
+pymongo==4.6.2
+python-multipart
 aiokafka
 redis
 supabase
 python-dotenv
 passlib[bcrypt]
+bcrypt==4.0.1
 pyjwt
 pydantic-settings
 pydantic[email]
+email-validator
 websockets
 jinja2
-# Extras
-httpx # for internal microservice communication
+prometheus-fastapi-instrumentator
+httpx

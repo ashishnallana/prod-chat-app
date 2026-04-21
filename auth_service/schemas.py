@@ -27,3 +27,9 @@ class ProfileResponse(BaseModel):
     name: Optional[str]
     bio: Optional[str]
     profile_picture_url: Optional[str]
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    is_verified: bool
+

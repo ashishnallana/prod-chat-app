@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from shared.database.postgres import engine, Base
 from shared.kafka.producer import close_kafka_producer
 from auth_service.routes import router as auth_router
+from prometheus_fastapi_instrumentator import Instrumentator
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,6 +15,8 @@ async def lifespan(app: FastAPI):
     await close_kafka_producer()
 
 app = FastAPI(title="Auth Service", lifespan=lifespan)
+
+Instrumentator().instrument(app).expose(app)
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 

@@ -2,21 +2,37 @@ import httpx
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from starlette.background import BackgroundTask
 import websockets
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="API Gateway")
 
+Instrumentator().instrument(app).expose(app)
+
+import os
+from fastapi.middleware.cors import CORSMiddleware
+
 # Service Map
 SERVICES = {
-    "auth": "http://localhost:8001",
-    "chat": "http://localhost:8002",
-    "files": "http://localhost:8003",
+    "auth": os.getenv("AUTH_SERVICE_URL", "http://localhost:8001"),
+    "chat": os.getenv("CHAT_SERVICE_URL", "http://localhost:8002"),
+    "files": os.getenv("FILE_SERVICE_URL", "http://localhost:8003"),
 }
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Async HTTP client
 client = httpx.AsyncClient()
 
 async def forward_request(request: Request, service_url: str):
-    url = f"{service_url}{request.url.path}"
+    # Strip the /api/v1 prefix since microservices expect /auth, /chat, etc.
+    stripped_path = request.url.path.replace("/api/v1", "", 1)
+    url = f"{service_url}{stripped_path}"
     if request.url.query:
         url += f"?{request.url.query}"
     
@@ -33,12 +49,11 @@ async def forward_request(request: Request, service_url: str):
         content=body
     )
     
-    response = await client.send(req, stream=True)
+    response = await client.send(req)
     return Response(
         content=response.content,
         status_code=response.status_code,
-        headers=dict(response.headers),
-        background=BackgroundTask(response.aclose)
+        headers=dict(response.headers)
     )
 
 @app.api_route("/api/v1/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
@@ -58,7 +73,8 @@ async def proxy_chat_ws(websocket: WebSocket):
     # Proxy WebSocket connection to the Chat Service
     await websocket.accept()
     query = websocket.url.query
-    chat_ws_url = f"ws://localhost:8002/chat/ws?{query}"
+    chat_base_url = SERVICES["chat"].replace("http://", "ws://")
+    chat_ws_url = f"{chat_base_url}/chat/ws?{query}"
     
     try:
         async with websockets.connect(chat_ws_url) as target_ws:

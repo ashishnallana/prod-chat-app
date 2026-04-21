@@ -65,3 +65,21 @@ async def login(payload: schemas.UserLogin, db: AsyncSession = Depends(get_db_se
 
     access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/users/search", response_model=list[schemas.UserResponse])
+async def search_users(email: str, db: AsyncSession = Depends(get_db_session)):
+    query = select(models.User).filter(models.User.email.ilike(f"%{email}%"))
+    result = await db.execute(query)
+    users = result.scalars().all()
+    return users
+
+from pydantic import BaseModel
+class UserIdsRequest(BaseModel):
+    user_ids: list[int]
+
+@router.post("/users/batch", response_model=list[schemas.UserResponse])
+async def get_users_batch(payload: UserIdsRequest, db: AsyncSession = Depends(get_db_session)):
+    query = select(models.User).filter(models.User.id.in_(payload.user_ids))
+    result = await db.execute(query)
+    users = result.scalars().all()
+    return users
