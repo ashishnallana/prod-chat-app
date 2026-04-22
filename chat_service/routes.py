@@ -83,7 +83,19 @@ async def get_history(user_id: int, current_user_id: int):
             ]
         }
     ).sort("timestamp").to_list()
-    return messages
+    
+    result = []
+    for m in messages:
+        result.append({
+            "id": str(m.id),
+            "sender_id": m.sender_id,
+            "receiver_id": m.receiver_id,
+            "content": m.content,
+            "type": m.message_type,
+            "file_url": m.file_url,
+            "timestamp": str(m.timestamp)
+        })
+    return result
 
 @router.get("/presence/{user_id}")
 async def get_presence(user_id: int):

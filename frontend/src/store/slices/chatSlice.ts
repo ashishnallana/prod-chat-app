@@ -22,6 +22,7 @@ interface ChatState {
   activeChatUser: User | null;
   messages: Message[];
   loading: boolean;
+  uploadingFile: boolean;
 }
 
 const initialState: ChatState = {
@@ -30,6 +31,7 @@ const initialState: ChatState = {
   activeChatUser: null,
   messages: [],
   loading: false,
+  uploadingFile: false,
 };
 
 // Search users
@@ -72,6 +74,16 @@ export const fetchHistory = createAsyncThunk('chat/history', async (userId: numb
   return response.data as Message[];
 });
 
+// Upload File
+export const uploadFile = createAsyncThunk('chat/uploadFile', async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post('/files/upload', formData);
+  
+  return response.data; // Expected: { url: string, filename: string }
+});
+
 const chatSlice = createSlice({
   name: 'chat',
   initialState,
@@ -106,6 +118,16 @@ const chatSlice = createSlice({
     builder.addCase(fetchHistory.fulfilled, (state, action) => {
       state.loading = false;
       state.messages = action.payload;
+    });
+    // Upload File
+    builder.addCase(uploadFile.pending, (state) => {
+      state.uploadingFile = true;
+    });
+    builder.addCase(uploadFile.fulfilled, (state) => {
+      state.uploadingFile = false;
+    });
+    builder.addCase(uploadFile.rejected, (state) => {
+      state.uploadingFile = false;
     });
   },
 });
