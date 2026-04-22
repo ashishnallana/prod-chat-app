@@ -85,5 +85,6 @@ npm run dev
 ## 💥 Features
 1. **Redux Global State Wiring**: Completely decouples Next.js UI from localized states, pushing network requests directly into global Redux thunks.
 2. **WebSocket True-Echo Routing**: Chat payloads establish persistent bidirectional TCP connections dynamically proxied flawlessly over the Gateway into Python without HTTP polling.
-3. **Kafka Event Bus**: Completely detaches external email latency from the Auth REST loop. When you create an account, Kafka consumes the notification instantly without hanging the UI.
-4. **Grafana Dashboards Ready**: Every FastAPI node inherently wraps its ASGI application utilizing `prometheus-fastapi-instrumentator`, exposing real live metrics available dynamically.
+3. **Multimedia File Sharing**: Complete integration with Supabase Storage. Attach images or documents natively in the UI; the `file_service` proxies the raw bytes and broadcasts a permanent CDN link back across the WebSocket connection. *(Note: Ensure your `chat-files` bucket has Public RLS INSERT/SELECT policies configured).*
+4. **Kafka Event Bus**: Completely detaches external email latency from the Auth REST loop. When you create an account, Kafka consumes the notification instantly without hanging the UI.
+5. **Grafana Dashboards Ready**: Every FastAPI node inherently wraps its ASGI application utilizing `prometheus-fastapi-instrumentator`, exposing real live metrics available dynamically.
