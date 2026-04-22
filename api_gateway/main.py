@@ -38,14 +38,16 @@ async def forward_request(request: Request, service_url: str):
     
     body = await request.body()
     
-    # Exclude certain headers that shouldn't be forwarded directly
-    headers = dict(request.headers)
-    headers.pop("host", None)
-    
+    # Exclude fragile browser headers that httpx manages natively
+    forward_headers = {}
+    for k, v in request.headers.items():
+        if k.lower() not in ["host", "content-length", "connection", "accept-encoding"]:
+            forward_headers[k] = v
+            
     req = client.build_request(
         method=request.method,
         url=url,
-        headers=headers,
+        headers=forward_headers,
         content=body
     )
     
